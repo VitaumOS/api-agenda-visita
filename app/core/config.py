@@ -7,3 +7,6 @@ FUSO_BRASILIA = ZoneInfo("America/Sao_Paulo")
 # Limites locais permitidos.
 INICIO_EXPEDIENTE = time(8, 0) # 8:00
 FIM_EXPEDIENTE = time(19, 0) # 19:00
+
+# Tempo necessário para o corretor se deslocar entre imóveis diferentes.
+INTERVALO_DESLOCAMENTO = 30

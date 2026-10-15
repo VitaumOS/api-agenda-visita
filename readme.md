@@ -11,7 +11,8 @@ app/
 │       ├── agendamentos.py
 │       └── health.py
 ├── core/
-│   └── config.py
+│   ├── config.py
+│   └── exceptions.py
 ├── main.py
 ├── models/
 ├── repositories/
@@ -24,7 +25,7 @@ tests/
 ```
 
 - `app/api/routes/`: endpoints HTTP da API; inclui `GET /health` e a criação de agendamentos.
-- `app/core/`: configurações e elementos compartilhados pela aplicação.
+- `app/core/`: configurações compartilhadas e a exceção usada para responder conflitos.
 - `app/models/`: representação dos dados e entidades do domínio.
 - `app/repositories/`: acesso e armazenamento dos dados; os agendamentos ficam em memória por enquanto.
 - `app/schemas/`: formatos de entrada e saída da API; `agendamento.py` contém os modelos do pedido e da resposta de agendamento.
@@ -51,4 +52,4 @@ O servidor ficará disponível em `http://127.0.0.1:8000`.
 
 Para conferir se a API está respondendo, acesse `http://127.0.0.1:8000/health`. A rota retorna `{"status": "ok"}`.
 
-O endpoint `POST /api/agendamentos` recebe os campos em camelCase definidos pelo enunciado e cria uma visita em memória. A janela de atendimento já é validada no fuso `America/Sao_Paulo`; as validações de conflitos e deslocamento serão implementadas nas próximas etapas.
+O endpoint `POST /api/agendamentos` recebe os campos em camelCase definidos pelo enunciado e cria uma visita em memória. A janela de atendimento é validada no fuso `America/Sao_Paulo`; sobreposições são rejeitadas e visitas a imóveis diferentes exigem 30 minutos de deslocamento. Sugestões de horários alternativos serão adicionadas em uma próxima etapa.

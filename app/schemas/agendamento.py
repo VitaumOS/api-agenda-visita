@@ -11,7 +11,6 @@ class AgendamentoCria(BaseModel):
     imovel_id: str = Field(alias="imovelId", min_length=1)
     inicio: datetime
     duracao_minutos: int = Field(
-
         alias="duracaoMinutos",
         ge=30,
         le=180,
