@@ -19,7 +19,7 @@ def criar_agendamento(dados: AgendamentoCria, request: Request) -> AgendamentoLe
 
 
 # Lista agendamentos de um corretor em uma data, em ordem cronológica.
-@router.get("/api/agendamentos",response_model=list[AgendamentoLeitura],)
+@router.get("/api/agendamentos",response_model=list[AgendamentoLeitura])
 def listar_agendamentos(request: Request, corretor_id: str = Query(alias="corretorId", min_length=1), dia: date = Query(alias="data")) -> list[AgendamentoLeitura]:
     # Busca o serviço criado junto com a aplicação.
     servico: AgendamentoService = request.app.state.agendamento_service

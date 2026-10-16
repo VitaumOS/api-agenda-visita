@@ -1,3 +1,5 @@
+from datetime import datetime, time, timedelta
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -125,12 +127,8 @@ def test_sobreposicao_parcial_retorna_conflito() -> None:
 
 # Sugestões para um conflito à tarde devem priorizar outros horários da tarde.
 def test_sugestoes_priorizam_o_mesmo_turno_e_respeitam_deslocamento() -> None:
-    primeira = enviar_agendamento(
-        "c-sugestoes-tarde", "im-1", "2026-06-12T14:00:00-03:00"
-    )
-    conflito = enviar_agendamento(
-        "c-sugestoes-tarde", "im-2", "2026-06-12T15:00:00-03:00"
-    )
+    primeira = enviar_agendamento("c-1", "im-1", "2026-06-12T14:00:00-03:00")
+    conflito = enviar_agendamento("c-1", "im-2", "2026-06-12T15:00:00-03:00")
 
     sugestoes = conflito.json()["sugestoes"]
 
@@ -187,6 +185,27 @@ def test_converte_fuso_e_aceita_inicio_as_oito_em_brasilia() -> None:
     assert resposta.status_code == 201
     assert resposta.json()["inicio"] == "2026-06-10T08:00:00-03:00"
     assert resposta.json()["fim"] == "2026-06-10T09:00:00-03:00"
+
+
+# Confirma que um agendamento pode começar exatamente às 08:00 em Brasília.
+def test_aceita_inicio_exatamente_as_oito() -> None:
+    resposta = enviar_agendamento(
+        "c-inicio-limite", "im-inicio-limite", "2026-06-18T08:00:00-03:00"
+    )
+
+    assert resposta.status_code == 201
+    assert resposta.json()["inicio"] == "2026-06-18T08:00:00-03:00"
+
+
+# Confirma que uma visita pode terminar exatamente às 19:00.
+def test_aceita_fim_exatamente_as_dezenove() -> None:
+    resposta = enviar_agendamento(
+        "c-fim-limite", "im-fim-limite", "2026-06-18T17:00:00-03:00",
+        duracao=120,
+    )
+
+    assert resposta.status_code == 201
+    assert resposta.json()["fim"] == "2026-06-18T19:00:00-03:00"
 
 
 # Confirma que visitas que começam antes das 8h são rejeitadas.
@@ -246,6 +265,17 @@ def test_lista_agendamentos_filtrando_corretor_e_data() -> None:
     assert resposta.json()[0]["inicio"] == "2026-06-16T14:00:00-03:00"
 
 
+# Uma consulta válida sem agendamentos deve retornar uma lista vazia.
+def test_lista_agendamentos_sem_resultados_retorna_lista_vazia() -> None:
+    resposta = client.get(
+        "/api/agendamentos",
+        params={"corretorId": "c-sem-agendamentos", "data": "2026-06-19"},
+    )
+
+    assert resposta.status_code == 200
+    assert resposta.json() == []
+
+
 # A data da consulta deve seguir o formato ISO YYYY-MM-DD.
 def test_lista_agendamentos_rejeita_data_invalida() -> None:
     resposta = client.get(
@@ -254,3 +284,31 @@ def test_lista_agendamentos_rejeita_data_invalida() -> None:
     )
 
     assert resposta.status_code == 400
+
+
+# Cada sugestão deve estar dentro do expediente e ser realmente agendável.
+def test_sugestoes_estao_no_expediente_e_livres_de_conflito() -> None:
+    primeira = enviar_agendamento("c-sugestoes-validas", "im-1", "2026-06-20T14:00:00-03:00")
+    conflito = enviar_agendamento("c-sugestoes-validas", "im-2", "2026-06-20T15:00:00-03:00")
+
+    assert primeira.status_code == 201
+    assert conflito.status_code == 409
+
+    sugestoes = conflito.json()["sugestoes"]
+    assert len(sugestoes) == 3
+
+    for indice, sugestao in enumerate(sugestoes):
+        inicio_sugerido = datetime.fromisoformat(sugestao)
+        fim_sugerido = inicio_sugerido + timedelta(minutes=60)
+
+        assert inicio_sugerido.time().replace(tzinfo=None) >= time(8, 0)
+        assert fim_sugerido.date() == inicio_sugerido.date()
+        assert fim_sugerido.time().replace(tzinfo=None) <= time(19, 0)
+
+        # Cada alternativa é testada contra a mesma agenda original.
+        corretor_teste = f"c-validar-sugestao-{indice}"
+        visita_existente = enviar_agendamento(corretor_teste,"im-1","2026-06-20T14:00:00-03:00")
+        visita_sugerida = enviar_agendamento(corretor_teste,"im-2",sugestao)
+
+        assert visita_existente.status_code == 201
+        assert visita_sugerida.status_code == 201

@@ -33,7 +33,7 @@ class AgendamentoService:
 
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="O agendamento deve ocorrer entre 08:00 e 19:00 no horário de Brasília.",
+                detail="O agendamento deve ocorrer entre 08:00 e 19:00 no horário de Brasília."
             )
 
         # Busca as visitas existentes do mesmo corretor naquele dia.
@@ -49,7 +49,7 @@ class AgendamentoService:
                 sugestoes = self._sugerir_horarios(inicio, dados.duracao_minutos, dados.imovel_id, visitas_existentes)
                 raise AgendamentoConflito(motivo, sugestoes)
 
-        # Monta a resposta com um identificador temporário único.
+        # Monta a resposta com um identificador único.
         agendamento = AgendamentoLeitura(
             agendamento_id=f"ag-{uuid4().hex[:8]}",
             corretor_id=dados.corretor_id,
@@ -58,7 +58,7 @@ class AgendamentoService:
             fim=fim,
             status="confirmado",
         )
-
+        #guarda no repositório
         self.repositorio.adicionar(agendamento)
         return agendamento
 

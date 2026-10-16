@@ -3,8 +3,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 # Importa os roteadores criados na pasta de rotas.
-from app.api.routes.agendamentos import router as agendamentos_router
-from app.api.routes.health import router as health_router
+from app.routes.agendamentos import router as agendamentos_router
+from app.routes.health import router as health_router
 
 from app.core.exceptions import AgendamentoConflito
 from app.repositories.agendamento_repository import AgendamentoRepositorio
