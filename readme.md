@@ -35,7 +35,7 @@ Com as dependências instaladas e o ambiente virtual ativado, execute todos os t
 python -m pytest
 ```
 
-Os testes cobrem os schemas, as respostas HTTP, a janela de atendimento, conflitos e deslocamento, sugestões, listagem por corretor/data e o endpoint de health.
+Os testes cobrem criação, validação dos dados, janela de atendimento, conflitos e deslocamento, sugestões e listagem por corretor/data.
 
 ## Endpoints
 
@@ -148,5 +148,4 @@ Os principais desafios de casos de borda tratados nesta implementação são:
 - **Mudança da data local:** a data usada para buscar os agendamentos é obtida depois da conversão para Brasília. DEvido a isso, um horário próximo da meia-noite pode pertencer a um dia diferente no fuso local do que no fuso enviado. Isso teve que ser tratado também.
 - **Comparação do horário local:** os limites `08:00` e `19:00` são horários sem fuso. Para compará-los, o código remove o `tzinfo` apenas do valor de relógio extraído; o `datetime` do agendamento permanece com o fuso de Brasília.
 - **Escolha dos horários para sugestão:** de todos os horários alternativos para sugestões, eles deveriam ser priorizados por turno, distância absoluta entre eles e por qual era mais cedo.
-
 

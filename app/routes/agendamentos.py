@@ -8,7 +8,6 @@ from app.services.agendamento_service import AgendamentoService
 # Agrupa os endpoints relacionados a agendamentos.
 router = APIRouter()
 
-
 # Cria um agendamento e responde com HTTP 201 (Created).
 @router.post("/api/agendamentos",response_model=AgendamentoLeitura,status_code=status.HTTP_201_CREATED)
 def criar_agendamento(dados: AgendamentoCria, request: Request) -> AgendamentoLeitura:
