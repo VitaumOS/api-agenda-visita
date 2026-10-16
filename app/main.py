@@ -26,14 +26,15 @@ app.include_router(agendamentos_router)
 @app.exception_handler(RequestValidationError)
 async def tratar_erro_de_validacao(request: Request, erro: RequestValidationError) -> JSONResponse:
     # Mantém apenas campos simples para que detalhes internos sejam serializáveis.
-    detalhes = [
-        {
+    detalhes = []
+    for item in erro.errors():
+        detalhe = {
             "loc": item["loc"],
             "msg": item["msg"],
             "type": item["type"],
         }
-        for item in erro.errors()
-    ]
+        detalhes.append(detalhe)
+
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={"detail": detalhes},

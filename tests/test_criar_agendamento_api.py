@@ -9,8 +9,7 @@ client = TestClient(app)
 
 # Confirma que o endpoint cria uma visita usando o contrato camelCase do PDF.
 def test_cria_agendamento() -> None:
-    resposta = client.post(
-        "/api/agendamentos",
+    resposta = client.post( "/api/agendamentos",
         json={
             "corretorId": "c-101",
             "imovelId": "im-553",
@@ -30,8 +29,7 @@ def test_cria_agendamento() -> None:
 
 # Confirma que o endpoint rejeita uma duração que não é múltipla de 30.
 def test_rejeita_duracao_invalida() -> None:
-    resposta = client.post(
-        "/api/agendamentos",
+    resposta = client.post( "/api/agendamentos",
         json={
             "corretorId": "c-101",
             "imovelId": "im-553",
@@ -44,14 +42,8 @@ def test_rejeita_duracao_invalida() -> None:
 
 
 # Cria visitas de teste em horários diferentes para o mesmo corretor.
-def enviar_agendamento(
-    corretor_id: str,
-    imovel_id: str,
-    inicio: str,
-    duracao: int = 60,
-):
-    return client.post(
-        "/api/agendamentos",
+def enviar_agendamento(corretor_id: str,imovel_id: str,inicio: str,duracao: int = 60):
+    return client.post( "/api/agendamentos",
         json={
             "corretorId": corretor_id,
             "imovelId": imovel_id,
@@ -87,7 +79,7 @@ def test_imovel_diferente_sem_intervalo_retorna_conflito_409() -> None:
     assert segunda.status_code == 409
     assert segunda.json()["status"] == "conflito"
     assert "deslocamento" in segunda.json()["motivo"]
-    assert segunda.json()["sugestoes"] == []
+    assert len(segunda.json()["sugestoes"]) == 3
 
 
 # O buffer de 30 minutos pode ser exato, sem exigir minutos adicionais.
@@ -131,10 +123,46 @@ def test_sobreposicao_parcial_retorna_conflito() -> None:
     assert "horário" in segunda.json()["motivo"]
 
 
+# Sugestões para um conflito à tarde devem priorizar outros horários da tarde.
+def test_sugestoes_priorizam_o_mesmo_turno_e_respeitam_deslocamento() -> None:
+    primeira = enviar_agendamento(
+        "c-sugestoes-tarde", "im-1", "2026-06-12T14:00:00-03:00"
+    )
+    conflito = enviar_agendamento(
+        "c-sugestoes-tarde", "im-2", "2026-06-12T15:00:00-03:00"
+    )
+
+    sugestoes = conflito.json()["sugestoes"]
+
+    assert primeira.status_code == 201
+    assert conflito.status_code == 409
+    assert len(sugestoes) == 3
+    assert all(sugestao.startswith("2026-06-12T") for sugestao in sugestoes)
+    assert all(int(sugestao[11:13]) >= 12 for sugestao in sugestoes)
+    assert sugestoes[0] == "2026-06-12T15:30:00-03:00"
+
+
+# Conflitos pela manhã também recebem opções, priorizando o turno da manhã.
+def test_sugestoes_de_conflito_pela_manha_priorizam_o_mesmo_turno() -> None:
+    primeira = enviar_agendamento(
+        "c-sugestoes-manha", "im-1", "2026-06-12T10:00:00-03:00"
+    )
+    conflito = enviar_agendamento(
+        "c-sugestoes-manha", "im-2", "2026-06-12T10:30:00-03:00"
+    )
+
+    sugestoes = conflito.json()["sugestoes"]
+
+    assert primeira.status_code == 201
+    assert conflito.status_code == 409
+    assert len(sugestoes) == 3
+    assert all(sugestao.startswith("2026-06-12T") for sugestao in sugestoes)
+    assert all(int(sugestao[11:13]) < 12 for sugestao in sugestoes[:2])
+
+
 # Confirma que visitas que terminam depois das 19h são rejeitadas.
 def test_rejeita_agendamento_que_termina_depois_das_dezenove() -> None:
-    reposta = client.post(
-            "api/agendamentos",
+    reposta = client.post("api/agendamentos",
         json={
             "corretorId": "c-102",
             "imovelId": "im-553",
@@ -163,14 +191,66 @@ def test_converte_fuso_e_aceita_inicio_as_oito_em_brasilia() -> None:
 
 # Confirma que visitas que começam antes das 8h são rejeitadas.
 def test_rejeita_inicio_antes_das_oito_em_brasilia() -> None:
-    resposta = client.post(
-        "/api/agendamentos",
+    resposta = client.post("/api/agendamentos",
         json={
             "corretorId": "c-104",
             "imovelId": "im-553",
             "inicio": "2026-06-10T10:30:00+00:00",
             "duracaoMinutos": 60,
         },
+    )
+
+    assert resposta.status_code == 400
+
+
+# A consulta deve ordenar os resultados mesmo que tenham sido criados fora de ordem.
+def test_lista_agendamentos_em_ordem_cronologica() -> None:
+    enviar_agendamento(
+        "c-listagem-ordem", "im-listagem", "2026-06-15T16:00:00-03:00"
+    )
+    enviar_agendamento(
+        "c-listagem-ordem", "im-listagem", "2026-06-15T14:00:00-03:00"
+    )
+
+    resposta = client.get("/api/agendamentos",
+        params={"corretorId": "c-listagem-ordem", "data": "2026-06-15"},
+    )
+
+    assert resposta.status_code == 200
+    assert [item["inicio"] for item in resposta.json()] == [
+        "2026-06-15T14:00:00-03:00",
+        "2026-06-15T16:00:00-03:00",
+    ]
+
+
+# A consulta deve excluir visitas de outros corretores e de outras datas.
+def test_lista_agendamentos_filtrando_corretor_e_data() -> None:
+    enviar_agendamento(
+        "c-listagem-filtro", "im-listagem", "2026-06-16T14:00:00-03:00"
+    )
+    enviar_agendamento(
+        "c-listagem-outro", "im-listagem", "2026-06-16T15:00:00-03:00"
+    )
+    enviar_agendamento(
+        "c-listagem-filtro", "im-listagem", "2026-06-17T14:00:00-03:00"
+    )
+
+    resposta = client.get(
+        "/api/agendamentos",
+        params={"corretorId": "c-listagem-filtro", "data": "2026-06-16"},
+    )
+
+    assert resposta.status_code == 200
+    assert len(resposta.json()) == 1
+    assert resposta.json()[0]["corretorId"] == "c-listagem-filtro"
+    assert resposta.json()[0]["inicio"] == "2026-06-16T14:00:00-03:00"
+
+
+# A data da consulta deve seguir o formato ISO YYYY-MM-DD.
+def test_lista_agendamentos_rejeita_data_invalida() -> None:
+    resposta = client.get(
+        "/api/agendamentos",
+        params={"corretorId": "c-listagem-data", "data": "16-06-2026"},
     )
 
     assert resposta.status_code == 400

@@ -10,12 +10,7 @@ class AgendamentoCria(BaseModel):
     corretor_id: str = Field(alias="corretorId", min_length=1)
     imovel_id: str = Field(alias="imovelId", min_length=1)
     inicio: datetime
-    duracao_minutos: int = Field(
-        alias="duracaoMinutos",
-        ge=30,
-        le=180,
-        multiple_of=30,
-    )
+    duracao_minutos: int = Field(alias="duracaoMinutos", ge=30, le=180, multiple_of=30)
 
     # Confere se o horário informado contém informação de fuso horário.
     @field_validator("inicio")

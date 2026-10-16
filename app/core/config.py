@@ -10,3 +10,5 @@ FIM_EXPEDIENTE = time(19, 0) # 19:00
 
 # Tempo necessário para o corretor se deslocar entre imóveis diferentes.
 INTERVALO_DESLOCAMENTO = 30
+# Horários alternativos são avaliados em intervalos de meia hora.
+INTERVALO_SUGESTOES = 30

@@ -24,7 +24,7 @@ app/
 tests/
 ```
 
-- `app/api/routes/`: endpoints HTTP da API; inclui `GET /health` e a criação de agendamentos.
+- `app/api/routes/`: endpoints HTTP da API; inclui `GET /health` e operações de criação e listagem de agendamentos.
 - `app/core/`: configurações compartilhadas e a exceção usada para responder conflitos.
 - `app/models/`: representação dos dados e entidades do domínio.
 - `app/repositories/`: acesso e armazenamento dos dados; os agendamentos ficam em memória por enquanto.
@@ -52,4 +52,6 @@ O servidor ficará disponível em `http://127.0.0.1:8000`.
 
 Para conferir se a API está respondendo, acesse `http://127.0.0.1:8000/health`. A rota retorna `{"status": "ok"}`.
 
-O endpoint `POST /api/agendamentos` recebe os campos em camelCase definidos pelo enunciado e cria uma visita em memória. A janela de atendimento é validada no fuso `America/Sao_Paulo`; sobreposições são rejeitadas e visitas a imóveis diferentes exigem 30 minutos de deslocamento. Sugestões de horários alternativos serão adicionadas em uma próxima etapa.
+O endpoint `POST /api/agendamentos` recebe os campos em camelCase definidos pelo enunciado e cria uma visita em memória. A janela de atendimento é validada no fuso `America/Sao_Paulo`; sobreposições são rejeitadas e visitas a imóveis diferentes exigem 30 minutos de deslocamento. Em caso de conflito, a API sugere até três horários livres em intervalos de 30 minutos, priorizando o turno solicitado.
+
+O endpoint `GET /api/agendamentos?corretorId=c-101&data=2026-06-10` lista as visitas daquele corretor na data informada, em ordem cronológica.
