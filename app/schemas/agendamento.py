@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # Representa os dados que o cliente precisa enviar para criar uma visita.
 class AgendamentoCria(BaseModel):
     # Aceita nomes Python internamente e os nomes camelCase enviados pelo cliente.
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(extra="forbid")
     corretor_id: str = Field(alias="corretorId", min_length=1)
     imovel_id: str = Field(alias="imovelId", min_length=1)
     inicio: datetime
@@ -14,7 +14,6 @@ class AgendamentoCria(BaseModel):
 
     # Confere se o horário informado contém informação de fuso horário.
     @field_validator("inicio")
-    @classmethod
     def validar_fuso_horario(cls, valor: datetime) -> datetime:
         if valor.tzinfo is None or valor.utcoffset() is None:
             raise ValueError("inicio deve incluir o fuso horário")
@@ -25,7 +24,7 @@ class AgendamentoCria(BaseModel):
 class AgendamentoLeitura(BaseModel):
     # Faz a resposta JSON usar camelCase sem mudar os nomes usados no Python.
     model_config = ConfigDict(populate_by_name=True)
-    agendamento_id: str = Field(alias="agendamentoId")
+    agendamento_id: str = Field(alias="agendamentoId", min_length=1)
     corretor_id: str = Field(alias="corretorId")
     imovel_id: str = Field(alias="imovelId")
     inicio: datetime

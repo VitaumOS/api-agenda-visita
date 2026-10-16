@@ -27,9 +27,9 @@ class AgendamentoService:
         # Calcula o fim usando o início.
         fim = inicio + timedelta(minutes=dados.duracao_minutos)
         # Confere que a visita começa dentro do expediente e termina no mesmo dia.
-        if (inicio.time().replace(tzinfo=None) < INICIO_EXPEDIENTE
+        if (inicio.time() < INICIO_EXPEDIENTE
             or fim.date() != inicio.date()
-            or fim.time().replace(tzinfo=None) > FIM_EXPEDIENTE):
+            or fim.time() > FIM_EXPEDIENTE):
 
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -102,9 +102,9 @@ class AgendamentoService:
         mesmo_turno = self._turno(inicio_solicitado)
         horarios_livres.sort(
             key=lambda horario: (
-                self._turno(horario) != mesmo_turno,
-                abs((horario - inicio_solicitado).total_seconds()),
-                horario,
+                self._turno(horario) != mesmo_turno, #Mesmo turno
+                abs((horario - inicio_solicitado).total_seconds()), #mais próximo do solicitado
+                horario
             )
         )
 

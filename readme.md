@@ -27,6 +27,16 @@ A API ficará disponível em `http://127.0.0.1:8000`. A documentação interativ
 
 Se o ambiente virtual já existia antes de uma dependência ser adicionada a `requirements.txt`, execute novamente `python -m pip install -r requirements.txt`.
 
+## Testes
+
+Com as dependências instaladas e o ambiente virtual ativado, execute todos os testes:
+
+```powershell
+python -m pytest
+```
+
+Os testes cobrem os schemas, as respostas HTTP, a janela de atendimento, conflitos e deslocamento, sugestões, listagem por corretor/data e o endpoint de health.
+
 ## Endpoints
 
 ### Verificar se a API está ativa
@@ -36,9 +46,7 @@ Se o ambiente virtual já existia antes de uma dependência ser adicionada a `re
 Resposta `200`:
 
 ```json
-{
-  "status": "ok"
-}
+{"status": "ok"}
 ```
 
 ### Criar agendamento
@@ -104,29 +112,41 @@ Retorna `200 OK` com uma lista ordenada pelo horário de início. Se não houver
 
 ```text
 app/
-├── api/routes/       # Endpoints HTTP
-├── core/             # Fuso, limites e exceções da aplicação
-├── repositories/     # Armazenamento e consulta em memória
-├── schemas/          # Validação dos dados de entrada e saída
-├── services/         # Regras de agendamento e sugestões
-└── main.py           # Criação da aplicação FastAPI
-tests/                # Testes automatizados
+├── routes/                 # Endpoints HTTP
+├── core/                   # Configurações e exceções compartilhadas
+├── repositories/           # Armazenamento e consulta em memória
+├── schemas/                # Validação dos dados de entrada e saída
+├── services/               # Regras de agendamento e sugestões
+└── main.py                 # Criação da aplicação FastAPI
+tests/                      # Testes automatizados
 ```
 
-O endpoint recebe a requisição e valida o formato por meio dos schemas. O serviço aplica as regras de negócio e consulta o repositório. O repositório mantém os dados em memória; não é necessário configurar um banco de dados para este desafio.
+O `main.py` cria a aplicação FastAPI, instancia o serviço com o repositório em memória e registra os roteadores. Os arquivos em `routes/` traduzem as requisições HTTP em chamadas ao serviço e definem os status e formatos das respostas. Os modelos de `schemas/` validam os campos recebidos e descrevem os dados devolvidos pela API.
 
-## Datas e fusos horários
+O `AgendamentoService` concentra as regras do domínio: converte datas para Brasília, calcula o fim da visita, valida a janela de atendimento, verifica conflitos e calcula sugestões. Quando a operação é válida, ele pede ao `AgendamentoRepositorio` que guarde os dados. É importante ressaltar que a persistência foi implementada através de uma estrutura volátil em memória. O repositório mantém uma lista em memória e filtra/ordena os resultados da consulta. Essa escolha mantém a implementação simples, como permitido pelo tópico, mas significa que os agendamentos são perdidos quando a aplicação é reiniciada.
 
-O campo `inicio` deve conter data, hora e offset, como `2026-06-10T14:00:00-03:00`. Horários sem fuso são rejeitados porque não identificam um instante sem ambiguidade. Antes de aplicar a janela de atendimento ou comparar com a agenda, o serviço converte o valor para `America/Sao_Paulo`. O horário de término é calculado a partir do início já convertido.
+As exceções de conflito são convertidas em HTTP `409` pela aplicação. Erros de validação das requisições são convertidos em HTTP `400`, de acordo com o contrato solicitado no enunciado.
 
-No Windows, `zoneinfo` pode precisar dos dados IANA fornecidos pela dependência `tzdata`. Por isso ela está declarada em `requirements.txt`.
+## Algoritmo de conflito e sugestões
 
-## Testes
+Para criar uma visita, o serviço primeiro consulta os agendamentos do mesmo corretor na data local solicitada. Cada visita existente é comparada com o novo intervalo:
 
-Com as dependências instaladas e o ambiente virtual ativado, execute todos os testes:
+1. Se os intervalos se sobrepõem, há conflito, inclusive quando a visita existente é no mesmo imóvel.
+2. Se não há sobreposição e os imóveis são iguais, não é necessário intervalo de deslocamento, já que uma visita pode começar exatamente quando a anterior termina.
+3. Se os imóveis são diferentes, o serviço amplia a comparação em 30 minutos entre as visitas. O novo horário só é aceito quando há o intervalo completo antes ou depois do compromisso existente. Exatamente 30 minutos é permitido.
 
-```powershell
-python -m pytest
-```
+Se qualquer comparação indicar conflito, o serviço não grava a visita. Em vez disso,procura alternativas no mesmo dia: começa às 08:00, avança em passos de 30 minutos e deixa de testar quando a duração já não cabe até às 19:00. Cada candidato passa pela mesma regra de sobreposição e deslocamento usada na criação. O horário originalmente solicitado não é incluído entre as alternativas.
 
-Os testes cobrem os schemas, as respostas HTTP, a janela de atendimento, conflitos e deslocamento, sugestões, listagem por corretor/data e o endpoint de health.
+As opções livres são ordenadas primeiro para priorizar o mesmo turno do pedido, isto é,manhã antes das 12:00, tarde a partir das 12:00, depois pela proximidade ao horário solicitado e, em caso de empate, pelo horário mais cedo. A API devolve no máximo as três primeiras opções em formato ISO 8601. Se não houver horários livres, a lista `sugestoes` fica vazia.
+
+## Principais desafios de borda: datas e fusos horários
+
+Os principais desafios de casos de borda tratados nesta implementação são:
+
+- **Horário sem fuso:** o campo `inicio` deve incluir data, hora e fuso-horário ISO 8601, por exemplo `2026-06-10T14:00:00-03:00`. Um valor sem fuso é rejeitado porque não identifica um instante sem ambiguidade.
+- **Fusos Horários diferente de Brasília:** a requisição pode usar outro fuso. Antes das validações, o horário é convertido para `America/Sao_Paulo`. Por exemplo, `2026-06-10T11:00:00+00:00` corresponde a `2026-06-10T08:00:00-03:00` em Brasília. Esse foi simples de implementar, visto que o único processo crucial era apenas a conversão de fuso. Feito ele, todo o resto do algoritmo não precisava se preocupar com o fuso.
+- **Mudança da data local:** a data usada para buscar os agendamentos é obtida depois da conversão para Brasília. DEvido a isso, um horário próximo da meia-noite pode pertencer a um dia diferente no fuso local do que no fuso enviado. Isso teve que ser tratado também.
+- **Comparação do horário local:** os limites `08:00` e `19:00` são horários sem fuso. Para compará-los, o código remove o `tzinfo` apenas do valor de relógio extraído; o `datetime` do agendamento permanece com o fuso de Brasília.
+- **Escolha dos horários para sugestão:** de todos os horários alternativos para sugestões, eles deveriam ser priorizados por turno, distância absoluta entre eles e por qual era mais cedo.
+
+
