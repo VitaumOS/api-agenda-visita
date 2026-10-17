@@ -12,6 +12,17 @@ class AgendamentoCria(BaseModel):
     inicio: datetime
     duracao_minutos: int = Field(alias="duracaoMinutos", ge=30, le=180, multiple_of=30)
 
+    #Confere se o horário informado está no formato ISO 8601, antes de tentar convertê-lo para datetime.
+    @field_validator("inicio", mode="before")
+    def validar_formato_iso8601(cls, valor: object) -> object:
+        if not isinstance(valor, str):
+            raise ValueError("inicio deve estar no formato ISO 8601")
+        try:
+            datetime.fromisoformat(valor)
+        except ValueError as erro:
+            raise ValueError("inicio deve estar no formato ISO 8601") from erro
+        return valor
+
     # Confere se o horário informado contém informação de fuso horário.
     @field_validator("inicio")
     def validar_fuso_horario(cls, valor: datetime) -> datetime:

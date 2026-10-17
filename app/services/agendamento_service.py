@@ -27,10 +27,7 @@ class AgendamentoService:
         # Calcula o fim usando o início.
         fim = inicio + timedelta(minutes=dados.duracao_minutos)
         # Confere que a visita começa dentro do expediente e termina no mesmo dia.
-        if (inicio.time() < INICIO_EXPEDIENTE
-            or fim.date() != inicio.date()
-            or fim.time() > FIM_EXPEDIENTE):
-
+        if (inicio.time() < INICIO_EXPEDIENTE or fim.date() != inicio.date() or fim.time() > FIM_EXPEDIENTE):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="O agendamento deve ocorrer entre 08:00 e 19:00 no horário de Brasília."
@@ -56,7 +53,7 @@ class AgendamentoService:
             imovel_id=dados.imovel_id,
             inicio=inicio,
             fim=fim,
-            status="confirmado",
+            status="confirmado"
         )
         #guarda no repositório
         self.repositorio.adicionar(agendamento)

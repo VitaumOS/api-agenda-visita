@@ -31,13 +31,13 @@ async def tratar_erro_de_validacao(request: Request, erro: RequestValidationErro
         detalhe = {
             "loc": item["loc"],
             "msg": item["msg"],
-            "type": item["type"],
+            "type": item["type"]
         }
         detalhes.append(detalhe)
 
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
-        content={"detail": detalhes},
+        content={"detail": detalhes}
     )
 
 
@@ -49,8 +49,8 @@ async def tratar_conflito(request: Request, erro: AgendamentoConflito) -> JSONRe
         content={
             "status": "conflito",
             "motivo": erro.motivo,
-            "sugestoes": erro.sugestoes,
-        },
+            "sugestoes": erro.sugestoes
+        }
     )
 
 # Define uma rota simples para confirmar que a aplicação está respondendo.

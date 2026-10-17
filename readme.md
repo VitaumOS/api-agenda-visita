@@ -23,7 +23,7 @@ python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-A API ficará disponível em `http://127.0.0.1:8000`. A documentação interativa do FastAPI fica em `/docs`; a versão alternativa fica em `/redoc`.
+A API ficará disponível em `http://127.0.0.1:8000`. A documentação interativa do FastAPI fica em `/docs`.
 
 Se o ambiente virtual já existia antes de uma dependência ser adicionada a `requirements.txt`, execute novamente `python -m pip install -r requirements.txt`.
 
@@ -47,6 +47,16 @@ Resposta `200`:
 
 ```json
 {"status": "ok"}
+```
+
+### Página inicial
+
+`GET /`
+
+Retorna `200 OK` com uma mensagem confirmando que a API está funcionando:
+
+```json
+{"mensagem": "API de Agenda de Visitas está funcionando"}
 ```
 
 ### Criar agendamento
@@ -99,9 +109,9 @@ Retorna `200 OK` com uma lista ordenada pelo horário de início. Se não houver
 
 ## Regras de negócio
 
-- Os horários são avaliados no fuso `America/Sao_Paulo`, mesmo que a requisição use outro offset ISO 8601.
+- Os horários são avaliados no fuso `America/Sao_Paulo`, mesmo que a requisição use outro fuso ISO 8601.
 - As visitas devem começar a partir das 08:00 e terminar até as 19:00, no mesmo dia local.
-- A duração deve estar entre 30 e 180 minutos e ser múltipla de 30.
+- A duração deve estar entre 30 e 180 minutos e ser múltipla de 30 (30,60,90,120,150,180).
 - Visitas do mesmo corretor não podem se sobrepor.
 - Visitas consecutivas ao mesmo imóvel podem encaixar sem intervalo.
 - Entre imóveis diferentes, deve haver pelo menos 30 minutos para deslocamento. Exatamente 30 minutos é permitido.
@@ -112,9 +122,9 @@ Retorna `200 OK` com uma lista ordenada pelo horário de início. Se não houver
 
 ```text
 app/
-├── routes/                 # Endpoints HTTP
 ├── core/                   # Configurações e exceções compartilhadas
 ├── repositories/           # Armazenamento e consulta em memória
+├── routes/                 # Endpoints HTTP
 ├── schemas/                # Validação dos dados de entrada e saída
 ├── services/               # Regras de agendamento e sugestões
 └── main.py                 # Criação da aplicação FastAPI
@@ -141,11 +151,9 @@ As opções livres são ordenadas primeiro para priorizar o mesmo turno do pedid
 
 ## Principais desafios de borda: datas e fusos horários
 
-Os principais desafios de casos de borda tratados nesta implementação são:
+Os principais desafios de casos de borda encontrados nesta implementação são:
 
 - **Horário sem fuso:** o campo `inicio` deve incluir data, hora e fuso-horário ISO 8601, por exemplo `2026-06-10T14:00:00-03:00`. Um valor sem fuso é rejeitado porque não identifica um instante sem ambiguidade.
 - **Fusos Horários diferente de Brasília:** a requisição pode usar outro fuso. Antes das validações, o horário é convertido para `America/Sao_Paulo`. Por exemplo, `2026-06-10T11:00:00+00:00` corresponde a `2026-06-10T08:00:00-03:00` em Brasília. Esse foi simples de implementar, visto que o único processo crucial era apenas a conversão de fuso. Feito ele, todo o resto do algoritmo não precisava se preocupar com o fuso.
 - **Mudança da data local:** a data usada para buscar os agendamentos é obtida depois da conversão para Brasília. DEvido a isso, um horário próximo da meia-noite pode pertencer a um dia diferente no fuso local do que no fuso enviado. Isso teve que ser tratado também.
-- **Comparação do horário local:** os limites `08:00` e `19:00` são horários sem fuso. Para compará-los, o código remove o `tzinfo` apenas do valor de relógio extraído; o `datetime` do agendamento permanece com o fuso de Brasília.
 - **Escolha dos horários para sugestão:** de todos os horários alternativos para sugestões, eles deveriam ser priorizados por turno, distância absoluta entre eles e por qual era mais cedo.
-
